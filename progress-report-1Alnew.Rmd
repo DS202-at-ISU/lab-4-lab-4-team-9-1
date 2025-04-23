@@ -1,5 +1,6 @@
 ---
 title: "progress-report-1Alnew"
+author: "Adrian Newgard"
 output: html_document
 ---
 
