@@ -40,7 +40,7 @@ data$Name <- gsub("X-", "", data$Name)
 data
 ```
 
-Next, I need to find the player ID of these people in the People data in Lahman's package and join that with my new data. After checking with the anti-join, I noticed that some people may be named differently in the data than in Lahman's package, namely Carlos Beltran, Felix Hernandez, Francisco Rodriguez, Carlos Gonzalez, and Hanley Ramirez. I realized that's probably because of the accents in their names in the new data, so I replaced those with the regular letters. Then, anti-join resulted in 0 missing people, so I used a left-join on the new data and the people needed data.
+Next, I need to find the player ID of these people in the People data in Lahman's package and join that with my new data. After checking with the anti-join, I noticed that some people may be named differently in the data than in Lahman's package, namely Carlos Beltran, Felix Hernandez, Francisco Rodriguez, Carlos Gonzalez, and Hanley Ramirez. I realized that's probably because of the accents in their names in the new data, so I replaced those with the regular letters. Then, anti-join resulted in 0 missing people, so I used a left-join on the new data and the people needed data. This caused a duplicate
 
 ```{r}
 peopleneeded <- People %>% mutate(

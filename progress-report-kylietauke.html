@@ -410,7 +410,7 @@ Hernandez, Francisco Rodriguez, Carlos Gonzalez, and Hanley Ramirez. I
 realized that’s probably because of the accents in their names in the
 new data, so I replaced those with the regular letters. Then, anti-join
 resulted in 0 missing people, so I used a left-join on the new data and
-the people needed data.</p>
+the people needed data. This caused a duplicate</p>
 <pre class="r"><code>peopleneeded &lt;- People %&gt;% mutate(
   Name = paste(`nameFirst`, `nameLast`)
 ) %&gt;% select(playerID, Name)
