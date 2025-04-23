@@ -7,7 +7,76 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(Lahman)
+library(rvest)
+library(tidyverse)
 ```
 
-## 
+## Progress Report
 
+```{r}
+# Checking HallOfFame dataset
+head(HallOfFame, 3)
+
+#Scraping HallOfFame 2025 table from website
+url <- "https://www.baseball-reference.com/awards/hof_2025.shtml"
+html <- read_html(url)
+tables <- html_table(html)
+
+#Obtain the column names from the first line as a variable. Overwrite the column names with the actual column names. Then delete the first line.
+data <- tables[[1]]
+actual_col_names <- data[1, ]
+colnames(data) <- actual_col_names
+data <- data[-1, ]
+head(data, 3)
+
+# Change Votes to numeric
+str(data)
+data$Votes <- as.numeric(data$Votes)
+
+# Drop any columns whose name appears more than once
+data <- data[, !duplicated(names(data))]
+
+# Adjust the names to fit those in People
+data$Name <- gsub("á", "a", data$Name)
+data$Name <- gsub("é", "e", data$Name)
+data$Name <- gsub("í", "i", data$Name)
+data$Name <- gsub("X-", "", data$Name)
+
+# Build a mini‐People table where Name = paste(nameFirst,nameLast)
+people_map <- People %>%
+  mutate(Name = paste(nameFirst, nameLast)) %>%
+  select(Name, playerID)
+
+# Join it to scraped data
+data <- data %>%
+  left_join(people_map, by = "Name")
+
+# Drop the old Name column now that I have playerID
+data <- data %>% select(-Name)
+
+# There's two Francisco Rodriguez, duplicates, remove the wrong one
+data <- data %>% filter(playerID != "rodrifr04")
+
+# Get the scraped data into the same shape as the HallOfFame data table
+hof2025_clean <- data %>% mutate(
+  playerID    = data$playerID,
+  yearID      = 2025,
+  votedBy     = "BBWAA",
+  ballots     = 394,
+  needed      = 296,
+  votes       = data$Votes,
+  inducted    = ifelse(data$Votes>=292, "Y", "N"),,
+  category    = "Player",
+  needed_note = NA_character_,
+  stringsAsFactors = FALSE
+) %>%
+  select(playerID, yearID, votedBy, ballots, needed, votes, inducted, category, needed_note)
+
+# Check it
+head(hof2025_clean, 3)
+
+# Save final result by appending the new data frame to the existing data HallOfFame in Lahman package.
+all_hof <- rbind(hof2025_clean, HallOfFame)
+readr::write_csv(all_hof, file="HallOfFame(Hong Hao).csv")
+```
