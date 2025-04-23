@@ -1,0 +1,65 @@
+---
+title: "progress-report-1Alnew"
+author: "Adrian Newgard"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(rvest)
+url <- ("https://www.baseball-reference.com/awards/hof_2025.shtml")
+html <- read_html(url)
+tables <- html_table(html)
+library(Lahman)
+head(HallOfFame, 3)
+head(tables[[1]], 3)
+data <- tables[[1]]
+actual_col_names <- data[1, ]
+colnames(data) <- actual_col_names
+head(data, 3)
+summary(data)
+#data <-  as_tibble(data)
+data$Votes <- as.numeric(data$Votes)
+data$Name <- gsub("X-", "", data$Name)
+data
+
+data <- data %>% select(c("Name", "Votes"))
+peopleneeded <- People %>% mutate(
+  Name = paste(`nameFirst`, `nameLast`)
+) %>% select(playerID, Name)
+
+data %>% anti_join(peopleneeded, by = "Name")
+
+People %>% filter(nameFirst %in% c("Carlos", "Felix", "Francisco", "Hanley") & nameLast %in% c("Beltran", "Hernandez", "Rodriguez", "Gonzalez", "Ramirez")) %>% select(nameFirst, nameLast)
+
+data$Name <- gsub("á", "a", data$Name)
+data$Name <- gsub("é", "e", data$Name)
+data$Name <- gsub("í", "i", data$Name)
+
+data %>% anti_join(peopleneeded, by = "Name")
+data <- data %>% left_join(
+  peopleneeded %>% select(Name, playerID), 
+  by = "Name")
+data
+head(HallOfFame, 3)
+
+hof25 <- data %>% mutate(
+  playerID = playerID,
+  yearID = 2025, 
+  votedBy = "BBWAA",
+  ballots = 394, 
+  needed = 296, 
+  votes = data$Votes,
+  inducted = ifelse(data$Votes >= 394, "Y", "N"),
+  category = "Player", 
+  needed_note = NA
+)
+hof25
+hof25 <- subset(hof25, select= -c(Name, Votes))
+hof25 <-  hof25[-1, ]
+hof25
+HallOfFame
+HallOfFame <-  rbind(HallOfFame, hof25)
+
+readr::write_csv(HallOfFame, file="hof.csv")```
+
