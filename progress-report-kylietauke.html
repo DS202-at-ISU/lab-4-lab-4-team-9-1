@@ -373,7 +373,7 @@ the data type of <code>Votes</code> into numeric. Some names had an “X-”
 in front of them, so I removed them to get just the names.</p>
 <pre class="r"><code>actual_col_names &lt;- data[1, ]
 colnames(data) &lt;- actual_col_names
-data &lt;- data
+data &lt;- data[-1, ]
 
 head(HallOfFame)</code></pre>
 <pre><code>##    playerID yearID votedBy ballots needed votes inducted category needed_note
@@ -384,47 +384,42 @@ head(HallOfFame)</code></pre>
 ## 5 abreubo01   2022   BBWAA     394    296    34        N   Player        &lt;NA&gt;
 ## 6 abreubo01   2023   BBWAA     389    292    60        N   Player        &lt;NA&gt;</code></pre>
 <pre class="r"><code>data &lt;- data %&gt;% select(c(&quot;Name&quot;, &quot;Votes&quot;))
-data$Votes &lt;- as.numeric(data$Votes)</code></pre>
-<pre><code>## Warning: NAs introduced by coercion</code></pre>
-<pre class="r"><code>data$Name &lt;- gsub(&quot;X-&quot;, &quot;&quot;, data$Name)
+data$Votes &lt;- as.numeric(data$Votes)
+data$Name &lt;- gsub(&quot;X-&quot;, &quot;&quot;, data$Name)
 data</code></pre>
-<pre><code>## # A tibble: 29 × 2
-##    Name           Votes
-##    &lt;chr&gt;          &lt;dbl&gt;
-##  1 Name              NA
-##  2 Ichiro Suzuki    393
-##  3 CC Sabathia      342
-##  4 Billy Wagner     325
-##  5 Carlos Beltrán   277
-##  6 Andruw Jones     261
-##  7 Chase Utley      157
-##  8 Alex Rodriguez   146
-##  9 Manny Ramirez    135
-## 10 Andy Pettitte    110
-## # ℹ 19 more rows</code></pre>
-<p>Next, I need to find the player ID of these people in the People data
-in Lahman’s package and join that with my new data. After checking with
-the anti-join, I noticed that some people may be named differently in
-the data than in Lahman’s package, namely Carlos Beltran, Felix
-Hernandez, Francisco Rodriguez, Carlos Gonzalez, and Hanley Ramirez. I
-realized that’s probably because of the accents in their names in the
-new data, so I replaced those with the regular letters. Then, anti-join
-resulted in 0 missing people, so I used a left-join on the new data and
-the people needed data. This caused a duplicate</p>
+<pre><code>## # A tibble: 28 × 2
+##    Name            Votes
+##    &lt;chr&gt;           &lt;dbl&gt;
+##  1 Ichiro Suzuki     393
+##  2 CC Sabathia       342
+##  3 Billy Wagner      325
+##  4 Carlos Beltrán    277
+##  5 Andruw Jones      261
+##  6 Chase Utley       157
+##  7 Alex Rodriguez    146
+##  8 Manny Ramirez     135
+##  9 Andy Pettitte     110
+## 10 Félix Hernández    81
+## # ℹ 18 more rows</code></pre>
+<p>Next, I got the player ID and names of people in the People data in
+Lahman’s package. This needs to be joined with the new data. This caused
+a duplicate</p>
 <pre class="r"><code>peopleneeded &lt;- People %&gt;% mutate(
   Name = paste(`nameFirst`, `nameLast`)
-) %&gt;% select(playerID, Name)
-
-data %&gt;% anti_join(peopleneeded, by = &quot;Name&quot;)</code></pre>
-<pre><code>## # A tibble: 6 × 2
+) %&gt;% select(playerID, Name)</code></pre>
+<p>After checking with the anti-join, I noticed that some people may be
+named differently in the data than in Lahman’s package, namely Carlos
+Beltran, Felix Hernandez, Francisco Rodriguez, Carlos Gonzalez, and
+Hanley Ramirez.</p>
+<pre class="r"><code>data %&gt;% anti_join(peopleneeded, by = &quot;Name&quot;)</code></pre>
+<pre><code>## # A tibble: 5 × 2
 ##   Name                Votes
 ##   &lt;chr&gt;               &lt;dbl&gt;
-## 1 Name                   NA
-## 2 Carlos Beltrán        277
-## 3 Félix Hernández        81
-## 4 Francisco Rodríguez    40
-## 5 Carlos González         2
-## 6 Hanley Ramírez          0</code></pre>
+## 1 Carlos Beltrán        277
+## 2 Félix Hernández        81
+## 3 Francisco Rodríguez    40
+## 4 Carlos González         2
+## 5 Hanley Ramírez          0</code></pre>
 <pre class="r"><code>People %&gt;% filter(nameFirst %in% c(&quot;Carlos&quot;, &quot;Felix&quot;, &quot;Francisco&quot;, &quot;Hanley&quot;) &amp; nameLast %in% c(&quot;Beltran&quot;, &quot;Hernandez&quot;, &quot;Rodriguez&quot;, &quot;Gonzalez&quot;, &quot;Ramirez&quot;)) %&gt;% select(nameFirst, nameLast)</code></pre>
 <pre><code>##    nameFirst  nameLast
 ## 1     Carlos   Beltran
@@ -440,33 +435,81 @@ data %&gt;% anti_join(peopleneeded, by = &quot;Name&quot;)</code></pre>
 ## 11     Felix Rodriguez
 ## 12 Francisco Rodriguez
 ## 13 Francisco Rodriguez</code></pre>
+<p>I realized that’s probably because of the accents in their names in
+the new data, so I replaced those with the regular letters. Then,
+anti-join resulted in 0 missing people, so I used a left-join on the new
+data and the people needed data. This caused a duplicate, since there
+were two Francisco Rodriguez’s in the People dataset. After doing some
+research on the Francisco Rodriguez in the website we used, the correct
+one had the player ID “rodrifr03”, so I kept that one in our data.</p>
 <pre class="r"><code>data$Name &lt;- gsub(&quot;á&quot;, &quot;a&quot;, data$Name)
 data$Name &lt;- gsub(&quot;é&quot;, &quot;e&quot;, data$Name)
 data$Name &lt;- gsub(&quot;í&quot;, &quot;i&quot;, data$Name)
 
 data %&gt;% anti_join(peopleneeded, by = &quot;Name&quot;)</code></pre>
-<pre><code>## # A tibble: 1 × 2
-##   Name  Votes
-##   &lt;chr&gt; &lt;dbl&gt;
-## 1 Name     NA</code></pre>
+<pre><code>## # A tibble: 0 × 2
+## # ℹ 2 variables: Name &lt;chr&gt;, Votes &lt;dbl&gt;</code></pre>
 <pre class="r"><code>data &lt;- data %&gt;% left_join(
   peopleneeded %&gt;% select(Name, playerID), 
   by = &quot;Name&quot;)
+
+data &lt;- data %&gt;% filter(playerID != &quot;rodrifr04&quot;)
 data</code></pre>
-<pre><code>## # A tibble: 30 × 3
-##    Name           Votes playerID 
-##    &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;    
-##  1 Name              NA &lt;NA&gt;     
-##  2 Ichiro Suzuki    393 suzukic01
-##  3 CC Sabathia      342 sabatcc01
-##  4 Billy Wagner     325 wagnebi02
-##  5 Carlos Beltran   277 beltrca01
-##  6 Andruw Jones     261 jonesan01
-##  7 Chase Utley      157 utleych01
-##  8 Alex Rodriguez   146 rodrial01
-##  9 Manny Ramirez    135 ramirma02
-## 10 Andy Pettitte    110 pettian01
-## # ℹ 20 more rows</code></pre>
+<pre><code>## # A tibble: 28 × 3
+##    Name            Votes playerID 
+##    &lt;chr&gt;           &lt;dbl&gt; &lt;chr&gt;    
+##  1 Ichiro Suzuki     393 suzukic01
+##  2 CC Sabathia       342 sabatcc01
+##  3 Billy Wagner      325 wagnebi02
+##  4 Carlos Beltran    277 beltrca01
+##  5 Andruw Jones      261 jonesan01
+##  6 Chase Utley       157 utleych01
+##  7 Alex Rodriguez    146 rodrial01
+##  8 Manny Ramirez     135 ramirma02
+##  9 Andy Pettitte     110 pettian01
+## 10 Felix Hernandez    81 hernafe02
+## # ℹ 18 more rows</code></pre>
+<p>Next, I changed my data to be the same format at the HallOfFame
+data.</p>
+<pre class="r"><code>head(HallOfFame)</code></pre>
+<pre><code>##    playerID yearID votedBy ballots needed votes inducted category needed_note
+## 1 aaronha01   1982   BBWAA     415    312   406        Y   Player        &lt;NA&gt;
+## 2 abbotji01   2005   BBWAA     516    387    13        N   Player        &lt;NA&gt;
+## 3 abreubo01   2020   BBWAA     397    298    22        N   Player        &lt;NA&gt;
+## 4 abreubo01   2021   BBWAA     401    301    35        N   Player        &lt;NA&gt;
+## 5 abreubo01   2022   BBWAA     394    296    34        N   Player        &lt;NA&gt;
+## 6 abreubo01   2023   BBWAA     389    292    60        N   Player        &lt;NA&gt;</code></pre>
+<pre class="r"><code>data &lt;- data %&gt;% mutate(
+  yearID = 2025,
+  votedBy = &quot;BBWAA&quot;,
+  ballots = 394,
+  needed = 296,
+  inducted = ifelse(Votes&gt;=296, &quot;Y&quot;, &quot;N&quot;),
+  category = &quot;Player&quot;,
+  needed_note = NA
+) %&gt;% select(-Name) %&gt;% 
+  rename(
+  votes = Votes
+)
+
+data</code></pre>
+<pre><code>## # A tibble: 28 × 9
+##    votes playerID  yearID votedBy ballots needed inducted category needed_note
+##    &lt;dbl&gt; &lt;chr&gt;      &lt;dbl&gt; &lt;chr&gt;     &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;    &lt;chr&gt;    &lt;lgl&gt;      
+##  1   393 suzukic01   2025 BBWAA       394    296 Y        Player   NA         
+##  2   342 sabatcc01   2025 BBWAA       394    296 Y        Player   NA         
+##  3   325 wagnebi02   2025 BBWAA       394    296 Y        Player   NA         
+##  4   277 beltrca01   2025 BBWAA       394    296 N        Player   NA         
+##  5   261 jonesan01   2025 BBWAA       394    296 N        Player   NA         
+##  6   157 utleych01   2025 BBWAA       394    296 N        Player   NA         
+##  7   146 rodrial01   2025 BBWAA       394    296 N        Player   NA         
+##  8   135 ramirma02   2025 BBWAA       394    296 N        Player   NA         
+##  9   110 pettian01   2025 BBWAA       394    296 N        Player   NA         
+## 10    81 hernafe02   2025 BBWAA       394    296 N        Player   NA         
+## # ℹ 18 more rows</code></pre>
+<p>Finally, I binded the datasets and got the CSV file.</p>
+<pre class="r"><code>newdf &lt;- rbind(data, HallOfFame)
+readr::write_csv(newdf, file=&quot;HallOfFame.csv&quot;)</code></pre>
 
 
 
