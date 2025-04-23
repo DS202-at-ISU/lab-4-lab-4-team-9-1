@@ -13,7 +13,7 @@
 
 <meta name="date" content="2025-04-23" />
 
-<title>progress-report-kylietauke</title>
+<title>Kylie’s Progress Report</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -350,14 +350,123 @@ display: none;
 
 
 
-<h1 class="title toc-ignore">progress-report-kylietauke</h1>
+<h1 class="title toc-ignore">Kylie’s Progress Report</h1>
 <h4 class="author">Kylie Tauke</h4>
 <h4 class="date">2025-04-23</h4>
 
 </div>
 
 
+<p>##Step 1: Scrape data</p>
+<p>I got the data by scraping the given URL, reading it as an HTML, and
+getting the table we wanted with HOF induction information.</p>
+<pre class="r"><code>url &lt;- &quot;https://www.baseball-reference.com/awards/hof_2025.shtml&quot;
+html &lt;- read_html(url)
+tables &lt;- html %&gt;% html_table(fill = TRUE)
+data &lt;- tables[[1]]</code></pre>
+<p>##Step 2: Clean data</p>
+<p>First, I got the column names from the first record in the table and
+made them the column names for the data frame. Then, selected the
+columns that I would need to add to the Lahman data (yearID, votedBy,
+ballots, needed, votes, inducted, category, needed_note). I then changed
+the data type of <code>Votes</code> into numeric. Some names had an “X-”
+in front of them, so I removed them to get just the names.</p>
+<pre class="r"><code>actual_col_names &lt;- data[1, ]
+colnames(data) &lt;- actual_col_names
+data &lt;- data
 
+head(HallOfFame)</code></pre>
+<pre><code>##    playerID yearID votedBy ballots needed votes inducted category needed_note
+## 1 aaronha01   1982   BBWAA     415    312   406        Y   Player        &lt;NA&gt;
+## 2 abbotji01   2005   BBWAA     516    387    13        N   Player        &lt;NA&gt;
+## 3 abreubo01   2020   BBWAA     397    298    22        N   Player        &lt;NA&gt;
+## 4 abreubo01   2021   BBWAA     401    301    35        N   Player        &lt;NA&gt;
+## 5 abreubo01   2022   BBWAA     394    296    34        N   Player        &lt;NA&gt;
+## 6 abreubo01   2023   BBWAA     389    292    60        N   Player        &lt;NA&gt;</code></pre>
+<pre class="r"><code>data &lt;- data %&gt;% select(c(&quot;Name&quot;, &quot;Votes&quot;))
+data$Votes &lt;- as.numeric(data$Votes)</code></pre>
+<pre><code>## Warning: NAs introduced by coercion</code></pre>
+<pre class="r"><code>data$Name &lt;- gsub(&quot;X-&quot;, &quot;&quot;, data$Name)
+data</code></pre>
+<pre><code>## # A tibble: 29 × 2
+##    Name           Votes
+##    &lt;chr&gt;          &lt;dbl&gt;
+##  1 Name              NA
+##  2 Ichiro Suzuki    393
+##  3 CC Sabathia      342
+##  4 Billy Wagner     325
+##  5 Carlos Beltrán   277
+##  6 Andruw Jones     261
+##  7 Chase Utley      157
+##  8 Alex Rodriguez   146
+##  9 Manny Ramirez    135
+## 10 Andy Pettitte    110
+## # ℹ 19 more rows</code></pre>
+<p>Next, I need to find the player ID of these people in the People data
+in Lahman’s package and join that with my new data. After checking with
+the anti-join, I noticed that some people may be named differently in
+the data than in Lahman’s package, namely Carlos Beltran, Felix
+Hernandez, Francisco Rodriguez, Carlos Gonzalez, and Hanley Ramirez. I
+realized that’s probably because of the accents in their names in the
+new data, so I replaced those with the regular letters. Then, anti-join
+resulted in 0 missing people, so I used a left-join on the new data and
+the people needed data.</p>
+<pre class="r"><code>peopleneeded &lt;- People %&gt;% mutate(
+  Name = paste(`nameFirst`, `nameLast`)
+) %&gt;% select(playerID, Name)
+
+data %&gt;% anti_join(peopleneeded, by = &quot;Name&quot;)</code></pre>
+<pre><code>## # A tibble: 6 × 2
+##   Name                Votes
+##   &lt;chr&gt;               &lt;dbl&gt;
+## 1 Name                   NA
+## 2 Carlos Beltrán        277
+## 3 Félix Hernández        81
+## 4 Francisco Rodríguez    40
+## 5 Carlos González         2
+## 6 Hanley Ramírez          0</code></pre>
+<pre class="r"><code>People %&gt;% filter(nameFirst %in% c(&quot;Carlos&quot;, &quot;Felix&quot;, &quot;Francisco&quot;, &quot;Hanley&quot;) &amp; nameLast %in% c(&quot;Beltran&quot;, &quot;Hernandez&quot;, &quot;Rodriguez&quot;, &quot;Gonzalez&quot;, &quot;Ramirez&quot;)) %&gt;% select(nameFirst, nameLast)</code></pre>
+<pre><code>##    nameFirst  nameLast
+## 1     Carlos   Beltran
+## 2     Carlos  Gonzalez
+## 3     Carlos Hernandez
+## 4     Carlos Hernandez
+## 5     Carlos Hernandez
+## 6     Carlos Hernandez
+## 7      Felix Hernandez
+## 8     Carlos   Ramirez
+## 9     Hanley   Ramirez
+## 10    Carlos Rodriguez
+## 11     Felix Rodriguez
+## 12 Francisco Rodriguez
+## 13 Francisco Rodriguez</code></pre>
+<pre class="r"><code>data$Name &lt;- gsub(&quot;á&quot;, &quot;a&quot;, data$Name)
+data$Name &lt;- gsub(&quot;é&quot;, &quot;e&quot;, data$Name)
+data$Name &lt;- gsub(&quot;í&quot;, &quot;i&quot;, data$Name)
+
+data %&gt;% anti_join(peopleneeded, by = &quot;Name&quot;)</code></pre>
+<pre><code>## # A tibble: 1 × 2
+##   Name  Votes
+##   &lt;chr&gt; &lt;dbl&gt;
+## 1 Name     NA</code></pre>
+<pre class="r"><code>data &lt;- data %&gt;% left_join(
+  peopleneeded %&gt;% select(Name, playerID), 
+  by = &quot;Name&quot;)
+data</code></pre>
+<pre><code>## # A tibble: 30 × 3
+##    Name           Votes playerID 
+##    &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;    
+##  1 Name              NA &lt;NA&gt;     
+##  2 Ichiro Suzuki    393 suzukic01
+##  3 CC Sabathia      342 sabatcc01
+##  4 Billy Wagner     325 wagnebi02
+##  5 Carlos Beltran   277 beltrca01
+##  6 Andruw Jones     261 jonesan01
+##  7 Chase Utley      157 utleych01
+##  8 Alex Rodriguez   146 rodrial01
+##  9 Manny Ramirez    135 ramirma02
+## 10 Andy Pettitte    110 pettian01
+## # ℹ 20 more rows</code></pre>
 
 
 

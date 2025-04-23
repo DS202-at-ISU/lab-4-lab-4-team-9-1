@@ -7,5 +7,57 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(Lahman)
 ```
 
+##Step 1: Scrape data
+
+I got the data by scraping the given URL, reading it as an HTML, and getting the table we wanted with HOF induction information.
+
+```{r}
+url <- "https://www.baseball-reference.com/awards/hof_2025.shtml"
+html <- read_html(url)
+tables <- html %>% html_table(fill = TRUE)
+data <- tables[[1]]
+```
+
+##Step 2: Clean data
+
+First, I got the column names from the first record in the table and made them the column names for the data frame. Then, selected the columns that I would need to add to the Lahman data (yearID, votedBy, ballots, needed, votes, inducted, category, needed_note). I then changed the data type of `Votes` into numeric. Some names had an "X-" in front of them, so I removed them to get just the names.
+
+```{r}
+actual_col_names <- data[1, ]
+colnames(data) <- actual_col_names
+data <- data
+
+head(HallOfFame)
+
+data <- data %>% select(c("Name", "Votes"))
+data$Votes <- as.numeric(data$Votes)
+data$Name <- gsub("X-", "", data$Name)
+data
+```
+
+Next, I need to find the player ID of these people in the People data in Lahman's package and join that with my new data. After checking with the anti-join, I noticed that some people may be named differently in the data than in Lahman's package, namely Carlos Beltran, Felix Hernandez, Francisco Rodriguez, Carlos Gonzalez, and Hanley Ramirez. I realized that's probably because of the accents in their names in the new data, so I replaced those with the regular letters. Then, anti-join resulted in 0 missing people, so I used a left-join on the new data and the people needed data.
+
+```{r}
+peopleneeded <- People %>% mutate(
+  Name = paste(`nameFirst`, `nameLast`)
+) %>% select(playerID, Name)
+
+data %>% anti_join(peopleneeded, by = "Name")
+
+People %>% filter(nameFirst %in% c("Carlos", "Felix", "Francisco", "Hanley") & nameLast %in% c("Beltran", "Hernandez", "Rodriguez", "Gonzalez", "Ramirez")) %>% select(nameFirst, nameLast)
+
+data$Name <- gsub("á", "a", data$Name)
+data$Name <- gsub("é", "e", data$Name)
+data$Name <- gsub("í", "i", data$Name)
+
+data %>% anti_join(peopleneeded, by = "Name")
+data <- data %>% left_join(
+  peopleneeded %>% select(Name, playerID), 
+  by = "Name")
+data
+```
