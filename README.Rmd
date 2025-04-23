@@ -29,3 +29,98 @@ hof %>%
   xlim(c(2000, 2022)) +
   ylab("Percent of votes")
 ```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+library(Lahman)
+```
+
+##Step 1: Scrape data
+
+I got the data by scraping the given URL, reading it as an HTML, and getting the table we wanted with HOF induction information.
+
+```{r}
+url <- "https://www.baseball-reference.com/awards/hof_2025.shtml"
+html <- read_html(url)
+tables <- html %>% html_table(fill = TRUE)
+data <- tables[[1]]
+```
+
+##Step 2: Clean data
+
+First, I got the column names from the first record in the table and made them the column names for the data frame. Then, selected the columns that I would need to add to the Lahman data (yearID, votedBy, ballots, needed, votes, inducted, category, needed_note). I then changed the data type of `Votes` into numeric. Some names had an "X-" in front of them, so I removed them to get just the names.
+
+```{r}
+actual_col_names <- data[1, ]
+colnames(data) <- actual_col_names
+data <- data[-1, ]
+
+head(HallOfFame)
+
+data <- data %>% select(c("Name", "Votes"))
+data$Votes <- as.numeric(data$Votes)
+data$Name <- gsub("X-", "", data$Name)
+data
+```
+
+Next, I got the player ID and names of people in the People data in Lahman's package. This needs to be joined with the new data. This caused a duplicate
+
+```{r}
+peopleneeded <- People %>% mutate(
+  Name = paste(`nameFirst`, `nameLast`)
+) %>% select(playerID, Name)
+```
+
+After checking with the anti-join, I noticed that some people may be named differently in the data than in Lahman's package, namely Carlos Beltran, Felix Hernandez, Francisco Rodriguez, Carlos Gonzalez, and Hanley Ramirez.
+
+```{r}
+data %>% anti_join(peopleneeded, by = "Name")
+
+People %>% filter(nameFirst %in% c("Carlos", "Felix", "Francisco", "Hanley") & nameLast %in% c("Beltran", "Hernandez", "Rodriguez", "Gonzalez", "Ramirez")) %>% select(nameFirst, nameLast)
+```
+
+I realized that's probably because of the accents in their names in the new data, so I replaced those with the regular letters. Then, anti-join resulted in 0 missing people, so I used a left-join on the new data and the people needed data. This caused a duplicate, since there were two Francisco Rodriguez's in the People dataset. After doing some research on the Francisco Rodriguez in the website we used, the correct one had the player ID "rodrifr03", so I kept that one in our data.
+
+```{r}
+data$Name <- gsub("á", "a", data$Name)
+data$Name <- gsub("é", "e", data$Name)
+data$Name <- gsub("í", "i", data$Name)
+
+data %>% anti_join(peopleneeded, by = "Name")
+data <- data %>% left_join(
+  peopleneeded %>% select(Name, playerID), 
+  by = "Name")
+
+data <- data %>% filter(playerID != "rodrifr04")
+data
+```
+
+Next, I changed my data to be the same format at the HallOfFame data.
+
+```{r}
+head(HallOfFame)
+
+data <- data %>% mutate(
+  yearID = 2025,
+  votedBy = "BBWAA",
+  ballots = 394,
+  needed = 296,
+  inducted = ifelse(Votes>=296, "Y", "N"),
+  category = "Player",
+  needed_note = NA
+) %>% select(-Name) %>% 
+  rename(
+  votes = Votes
+)
+
+data
+```
+
+Finally, I binded the datasets and got the CSV file.
+
+```{r}
+newdf <- rbind(data, HallOfFame)
+readr::write_csv(newdf, file="HallOfFame.csv")
+```
