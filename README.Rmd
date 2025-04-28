@@ -30,9 +30,7 @@ hof %>%
   ylab("Percent of votes")
 ```
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-library(tidyverse)
+```{r}
 library(rvest)
 library(Lahman)
 ```
